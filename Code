@@ -1,0 +1,70 @@
+from ucimlrepo import fetch_ucirepo
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+# Datensatz abrufen
+drug_consumption_quantified = fetch_ucirepo(id=373)
+
+# Daten (Features und Zielvariable)
+X = drug_consumption_quantified.data.features
+y = drug_consumption_quantified.data.targets
+
+# Zielvariable auf eine Droge beschränken (z.B. Cannabis)
+y = y['cannabis']  # Anpassen, falls die Spalte anders benannt ist
+
+# Zeige eine erste Übersicht der Daten
+print("Features (Merkmale):")
+print(X.head())
+
+print("\nZielvariable (Cannabis-Konsum):")
+print(y.head())
+
+# Train-Test-Split (80% Training, 20% Test)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Verifizieren des Splits
+print("\nTrainingsdaten (Features) : ", X_train.shape)
+print("Testdaten (Features) : ", X_test.shape)
+
+# Random Forest Modell
+rf_model = RandomForestClassifier(random_state=42)
+rf_model.fit(X_train, y_train)
+y_pred_rf = rf_model.predict(X_test)
+
+# Evaluierung des Random Forest Modells
+print("\nRandom Forest - Genauigkeit:", accuracy_score(y_test, y_pred_rf))
+print("\nRandom Forest - Klassifikationsbericht:")
+print(classification_report(y_test, y_pred_rf))
+
+# Konfusionsmatrix Random Forest
+conf_matrix_rf = confusion_matrix(y_test, y_pred_rf)
+plt.figure(figsize=(10, 7))
+sns.heatmap(conf_matrix_rf, annot=True, fmt='d', cmap='Blues')
+plt.title("Konfusionsmatrix - Random Forest (Cannabis)")
+plt.xlabel("Vorhergesagt")
+plt.ylabel("Wahr")
+#plt.show()
+
+# Logistische Regression Modell
+logreg_model = LogisticRegression(max_iter=1000)
+logreg_model.fit(X_train, y_train)
+y_pred_logreg = logreg_model.predict(X_test)
+
+# Evaluierung des Logistischen Regressionsmodells
+print("\nLogistische Regression - Genauigkeit:", accuracy_score(y_test, y_pred_logreg))
+print("\nLogistische Regression - Klassifikationsbericht:")
+print(classification_report(y_test, y_pred_logreg))
+
+# Konfusionsmatrix Logistische Regression
+conf_matrix_logreg = confusion_matrix(y_test, y_pred_logreg)
+plt.figure(figsize=(10, 7))
+sns.heatmap(conf_matrix_logreg, annot=True, fmt='d', cmap='Blues')
+plt.title("Konfusionsmatrix - Logistische Regression (Cannabis)")
+plt.xlabel("Vorhergesagt")
+plt.ylabel("Wahr")
+plt.show()
