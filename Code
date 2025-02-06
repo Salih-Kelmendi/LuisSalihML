@@ -3,9 +3,11 @@ import pandas as pd
 from sklearn.model_selection import train_test_split
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.linear_model import LogisticRegression
+from sklearn.neighbors import KNeighborsClassifier
 from sklearn.metrics import accuracy_score, confusion_matrix, classification_report
 import matplotlib.pyplot as plt
 import seaborn as sns
+import numpy as np
 
 # Datensatz abrufen
 drug_consumption_quantified = fetch_ucirepo(id=373)
@@ -14,57 +16,98 @@ drug_consumption_quantified = fetch_ucirepo(id=373)
 X = drug_consumption_quantified.data.features
 y = drug_consumption_quantified.data.targets
 
-# Zielvariable auf eine Droge beschränken (z.B. Cannabis)
-y = y['cannabis']  # Anpassen, falls die Spalte anders benannt ist
-
-# Zeige eine erste Übersicht der Daten
-print("Features (Merkmale):")
+# Zeige eine erste Übersicht der Features und der Zielvariablen
+print("Übersicht der Merkmale:")
 print(X.head())
 
-print("\nZielvariable (Cannabis-Konsum):")
-print(y.head())
+# Liste der Drogen, die im Datensatz enthalten sind
+drug_columns = ['cannabis', 'coke', 'ecstasy', 'heroin', 'meth', 'mushrooms', 'nicotine', 'lsd', 'amphet', 'crack', 'alcohol']
 
-# Train-Test-Split (80% Training, 20% Test)
-X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+# Auswahl der Drogen für das Modell (cannabis, coke, nicotine)
+chosen_drugs = ['cannabis', 'coke', 'nicotine']  # Liste der zu analysierenden Drogen
 
-# Verifizieren des Splits
-print("\nTrainingsdaten (Features) : ", X_train.shape)
-print("Testdaten (Features) : ", X_test.shape)
+# Visualisierung der Verteilung des Konsums für jede Droge
+for drug in chosen_drugs:
+    plt.figure(figsize=(8, 6))
+    sns.countplot(x=y[drug])
+    plt.title(f"Verteilung des Konsums für {drug.capitalize()}")
+    plt.xlabel('Konsumkategorie')
+    plt.ylabel('Anzahl der Personen')
+    plt.show()
 
-# Random Forest Modell
-rf_model = RandomForestClassifier(random_state=42)
-rf_model.fit(X_train, y_train)
-y_pred_rf = rf_model.predict(X_test)
+# Funktion, die Modelle erstellt und evaluiert
+def train_and_evaluate_model(drug_name):
+    y_selected = y[drug_name]  # Zielvariable für die gewählte Droge
 
-# Evaluierung des Random Forest Modells
-print("\nRandom Forest - Genauigkeit:", accuracy_score(y_test, y_pred_rf))
-print("\nRandom Forest - Klassifikationsbericht:")
-print(classification_report(y_test, y_pred_rf))
+    # Überblick über die Zielvariable
+    print(f"\nÜberblick der Zielvariable ({drug_name}):")
+    print(y_selected.value_counts())
 
-# Konfusionsmatrix Random Forest
-conf_matrix_rf = confusion_matrix(y_test, y_pred_rf)
-plt.figure(figsize=(10, 7))
-sns.heatmap(conf_matrix_rf, annot=True, fmt='d', cmap='Blues')
-plt.title("Konfusionsmatrix - Random Forest (Cannabis)")
-plt.xlabel("Vorhergesagt")
-plt.ylabel("Wahr")
-#plt.show()
+    # Train-Test-Split (80% Training, 20% Test)
+    X_train, X_test, y_train, y_test = train_test_split(X, y_selected, test_size=0.2, random_state=42)
 
-# Logistische Regression Modell
-logreg_model = LogisticRegression(max_iter=1000)
-logreg_model.fit(X_train, y_train)
-y_pred_logreg = logreg_model.predict(X_test)
+    # Verifizieren des Splits
+    print("\nTrainingsdaten (Features) : ", X_train.shape)
+    print("Testdaten (Features) : ", X_test.shape)
 
-# Evaluierung des Logistischen Regressionsmodells
-print("\nLogistische Regression - Genauigkeit:", accuracy_score(y_test, y_pred_logreg))
-print("\nLogistische Regression - Klassifikationsbericht:")
-print(classification_report(y_test, y_pred_logreg))
+    # Modelle erstellen und trainieren
+    # Random Forest Modell
+    rf_model = RandomForestClassifier(random_state=42)
+    rf_model.fit(X_train, y_train)
+    y_pred_rf = rf_model.predict(X_test)
 
-# Konfusionsmatrix Logistische Regression
-conf_matrix_logreg = confusion_matrix(y_test, y_pred_logreg)
-plt.figure(figsize=(10, 7))
-sns.heatmap(conf_matrix_logreg, annot=True, fmt='d', cmap='Blues')
-plt.title("Konfusionsmatrix - Logistische Regression (Cannabis)")
-plt.xlabel("Vorhergesagt")
-plt.ylabel("Wahr")
-plt.show()
+    # Logistische Regression Modell
+    logreg_model = LogisticRegression(max_iter=1000)
+    logreg_model.fit(X_train, y_train)
+    y_pred_logreg = logreg_model.predict(X_test)
+
+    # K-Nearest Neighbors Modell
+    knn_model = KNeighborsClassifier()
+    knn_model.fit(X_train, y_train)
+    y_pred_knn = knn_model.predict(X_test)
+
+    # Ergebnisse für alle Modelle
+    models = ['Random Forest', 'Logistische Regression', 'K-Nearest Neighbors']
+    accuracies = [
+        accuracy_score(y_test, y_pred_rf),
+        accuracy_score(y_test, y_pred_logreg),
+        accuracy_score(y_test, y_pred_knn)
+    ]
+    classification_reports = [
+        classification_report(y_test, y_pred_rf, zero_division=0),
+        classification_report(y_test, y_pred_logreg, zero_division=0),
+        classification_report(y_test, y_pred_knn, zero_division=0)
+    ]
+
+    # Ausgabe der Genauigkeit und Klassifikationsberichte
+    for i in range(3):
+        print(f"\n{models[i]} - Genauigkeit:", accuracies[i])
+        print(f"\n{models[i]} - Klassifikationsbericht:")
+        print(classification_reports[i])
+
+    # Vergleich der Genauigkeiten
+    plt.figure(figsize=(8, 6))
+    plt.bar(models, accuracies, color=['blue', 'green', 'orange'])
+    plt.xlabel('Modelle')
+    plt.ylabel('Genauigkeit')
+    plt.title(f'Vergleich der Genauigkeit der Modelle für {drug_name.capitalize()}')
+    plt.show()
+
+    # Konfusionsmatrix für jedes Modell
+    for i in range(3):
+        conf_matrix = confusion_matrix(y_test, [y_pred_rf, y_pred_logreg, y_pred_knn][i])
+        plt.figure(figsize=(10, 7))
+        sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues')
+        plt.title(f"Konfusionsmatrix - {models[i]} ({drug_name.capitalize()})")
+        plt.xlabel("Vorhergesagt")
+        plt.ylabel("Wahr")
+        plt.show()
+
+    # Überprüfung der Klassen in den Vorhersagen
+    unique_classes = np.unique(y_test)
+    print("\nVorhergesagte Klassen:", np.unique(y_pred_rf))
+    print("Echte Klassen:", unique_classes)
+
+# Trainiere und evaluiere Modelle für jede Droge in `chosen_drugs`
+for drug in chosen_drugs:
+    train_and_evaluate_model(drug)
